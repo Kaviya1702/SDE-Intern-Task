@@ -10,13 +10,14 @@ const seedList: Array<{
   eventType: EventType;
   payload: Record<string, unknown>;
 }> = [
+  // Initial seed event (Exact Neural Inverse requirement contract example)
   {
     timestamp: "2026-09-08T14:32:00Z",
     userId: "u_1234",
     sessionId: "s_5678",
     eventType: "ai_tool_call",
-    payload: {"content":"Check the secret_key configuration"},
-  },
+    payload: { content: "Check the secret_key configuration" },
+  },,
   {
     timestamp: "2026-09-08T14:32:00Z",
     userId: "u_1234",
@@ -73,31 +74,40 @@ export const seedEvents: AuditEvent[] = seedList.map((event) => ({
   ...event,
 }));
 
-function persistSeedEvent(event){if(process.env.NODE_ENV==="test"){return}const newEntry={timestamp:event.timestamp,userId:event.userId,sessionId:event.sessionId,eventType:event.eventType,payload:event.payload};seedList.push(newEntry);const formattedItems=seedList.map(item=>`  {
-    timestamp: ${JSON.stringify(item.timestamp)},
-    userId: ${JSON.stringify(item.userId)},
-    sessionId: ${JSON.stringify(item.sessionId)},
-    eventType: ${JSON.stringify(item.eventType)},
-    payload: ${JSON.stringify(item.payload)},
-  }`).join(",\n");const fileContent=`import fs from "node:fs";
-import path from "node:path";
-import crypto from "crypto";
-import type { AuditEvent, EventType } from "./server.js";
+export function persistSeedEvent(event: AuditEvent): void {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
 
-const seedList: Array<{
-  timestamp: string;
-  userId: string;
-  sessionId: string;
-  eventType: EventType;
-  payload: Record<string, unknown>;
-}> = [
-${formattedItems}
-];
+  const newEntry = {
+    timestamp: event.timestamp,
+    userId: event.userId,
+    sessionId: event.sessionId,
+    eventType: event.eventType,
+    payload: event.payload,
+  };
 
-export const seedEvents: AuditEvent[] = seedList.map((event) => ({
-  id: crypto.randomUUID(),
-  ...event,
-}));
+  seedList.push(newEntry);
 
-${persistSeedEvent.toString()}
-`;try{const seedPath=path.resolve(process.cwd(),"src","seed.ts");fs.writeFileSync(seedPath,fileContent,"utf-8")}catch(err){console.error("Failed to write to seed.ts",err)}}
+  try {
+    const seedPath = path.resolve(process.cwd(), "src", "seed.ts");
+    const content = fs.readFileSync(seedPath, "utf-8");
+
+    const formattedItem = `  {
+    timestamp: ${JSON.stringify(newEntry.timestamp)},
+    userId: ${JSON.stringify(newEntry.userId)},
+    sessionId: ${JSON.stringify(newEntry.sessionId)},
+    eventType: ${JSON.stringify(newEntry.eventType)},
+    payload: ${JSON.stringify(newEntry.payload)},
+  }`;
+
+    const updatedContent = content.replace(
+      /(\n\];\s*\n\s*export const seedEvents)/,
+      `,\n${formattedItem}\n];\n\nexport const seedEvents`
+    );
+
+    fs.writeFileSync(seedPath, updatedContent, "utf-8");
+  } catch (err) {
+    console.error("Failed to update seed.ts", err);
+  }
+}
