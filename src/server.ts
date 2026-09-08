@@ -3,7 +3,7 @@ import crypto from "crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getDenyList } from "./config.js";
-import { seedEvents } from "./seed.js";
+import { seedEvents, persistSeedEvent } from "./seed.js";
 
 export const EVENT_TYPES = [
   "file_edit",
@@ -113,6 +113,7 @@ export function createApp() {
     };
 
     events.push(newEvent);
+    persistSeedEvent(newEvent);
     return res.status(201).json({
       ...newEvent,
       flagged: isFlagged(newEvent),
