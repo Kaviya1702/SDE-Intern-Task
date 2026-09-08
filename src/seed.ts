@@ -1,6 +1,13 @@
 import crypto from "crypto";
+import type { AuditEvent, EventType } from "./server.js";
 
-export const seedEvents = [
+const seedList: Array<{
+  timestamp: string;
+  userId: string;
+  sessionId: string;
+  eventType: EventType;
+  payload: Record<string, unknown>;
+}> = [
   {
     timestamp: "2026-09-08T09:00:00Z",
     userId: "u_1001",
@@ -144,7 +151,9 @@ export const seedEvents = [
     eventType: "ai_tool_call",
     payload: { content: "Can you check my password handling?" },
   },
-].map((event) => ({
+];
+
+export const seedEvents: AuditEvent[] = seedList.map((event) => ({
   id: crypto.randomUUID(),
   ...event,
 }));

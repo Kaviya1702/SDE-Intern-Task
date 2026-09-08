@@ -1,158 +1,208 @@
-import express, { Request, Response } from "express";
+import express, { type Request, type Response } from "express";
 import crypto from "crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getDenyList } from "./config.js";
 import { seedEvents } from "./seed.js";
 
-const app = express();
-const PORT = 3000;
-
-// JSON request body read panna
-app.use(express.json());
-
-// Allowed event types
-const EVENT_TYPES = [
+export const EVENT_TYPES = [
   "file_edit",
   "ai_tool_call",
   "command_exec",
 ] as const;
 
-type EventType = (typeof EVENT_TYPES)[number];
+export type EventType = (typeof EVENT_TYPES)[number];
 
-// Event structure
-interface AuditEvent {
+export interface AuditEvent {
   id: string;
   timestamp: string;
   userId: string;
   sessionId: string;
   eventType: EventType;
-  payload: {
-    content?: string;
-    [key: string]: unknown;
-  };
+  payload: Record<string, unknown>;
 }
 
-// In-memory storage
-const events: AuditEvent[] = [];
+const events: AuditEvent[] = [...seedEvents];
+const PORT = Number(process.env.PORT ?? 3000);
 
-// Load seed events
-events.push(...(seedEvents as AuditEvent[]));
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
-// Configurable denylist
-const DENYLIST = ["password", "secret_key", "api_key"];
+function isValidTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
 
-// Check whether an event should be flagged
-function isFlagged(event: AuditEvent): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime());
+}
+
+export function isFlagged(event: AuditEvent): boolean {
   if (event.eventType !== "ai_tool_call") {
     return false;
   }
 
-  const content = event.payload.content;
+  const content = event.payload?.content;
+  let contentString = "";
 
-  if (typeof content !== "string") {
+  if (typeof content === "string") {
+    contentString = content;
+  } else if (content !== null && typeof content === "object") {
+    contentString = JSON.stringify(content);
+  } else if (typeof event.payload === "string") {
+    contentString = event.payload;
+  } else if (event.payload !== null && typeof event.payload === "object") {
+    contentString = JSON.stringify(event.payload);
+  }
+
+  if (!contentString) {
     return false;
   }
 
-  const lowerContent = content.toLowerCase();
-
-  return DENYLIST.some((keyword) =>
-    lowerContent.includes(keyword.toLowerCase())
+  const normalized = contentString.toLowerCase();
+  return getDenyList().some((keyword) =>
+    normalized.includes(keyword.toLowerCase())
   );
 }
 
-// POST /events
-app.post("/events", (req: Request, res: Response) => {
-  const { timestamp, userId, sessionId, eventType, payload } = req.body;
+export function createApp() {
+  const app = express();
 
-  // Required field validation
-  if (!timestamp || !userId || !sessionId || !eventType || !payload) {
-    return res.status(400).json({
-      error: "Missing required field",
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.static(path.resolve(process.cwd(), "public")));
+
+  app.post("/events", (req: Request, res: Response) => {
+    const { timestamp, userId, sessionId, eventType, payload } = req.body ?? {};
+
+    if (
+      !isNonEmptyString(timestamp) ||
+      !isNonEmptyString(userId) ||
+      !isNonEmptyString(sessionId) ||
+      !isNonEmptyString(eventType) ||
+      !payload || typeof payload !== "object"
+    ) {
+      return res.status(400).json({
+        error: "Missing required field",
+      });
+    }
+
+    if (!EVENT_TYPES.includes(eventType as EventType)) {
+      return res.status(400).json({
+        error: "Invalid eventType. Must be file_edit, ai_tool_call, or command_exec",
+      });
+    }
+
+    if (!isValidTimestamp(timestamp)) {
+      return res.status(400).json({
+        error: "Malformed timestamp",
+      });
+    }
+
+    const newEvent: AuditEvent = {
+      id: crypto.randomUUID(),
+      timestamp,
+      userId: userId.trim(),
+      sessionId: sessionId.trim(),
+      eventType: eventType as EventType,
+      payload,
+    };
+
+    events.push(newEvent);
+    return res.status(201).json({
+      ...newEvent,
+      flagged: isFlagged(newEvent),
     });
-  }
+  });
 
-  // Event type validation
-  if (!EVENT_TYPES.includes(eventType)) {
-    return res.status(400).json({
-      error:
-        "Invalid eventType. Must be file_edit, ai_tool_call, or command_exec",
-    });
-  }
+  app.get("/events", (req: Request, res: Response) => {
+    const { sessionId, eventType, from, to } = req.query;
 
-  // Timestamp validation
-  const parsedDate = new Date(timestamp);
+    if (!isNonEmptyString(sessionId)) {
+      return res.status(400).json({
+        error: "sessionId is required",
+      });
+    }
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return res.status(400).json({
-      error: "Malformed timestamp",
-    });
-  }
+    if (from && typeof from === "string" && !isValidTimestamp(from)) {
+      return res.status(400).json({
+        error: "Malformed from timestamp",
+      });
+    }
 
-  const newEvent: AuditEvent = {
-    id: crypto.randomUUID(),
-    timestamp,
-    userId,
-    sessionId,
-    eventType,
-    payload,
-  };
+    if (to && typeof to === "string" && !isValidTimestamp(to)) {
+      return res.status(400).json({
+        error: "Malformed to timestamp",
+      });
+    }
 
-  events.push(newEvent);
+    let filteredEvents = events.filter((event) => event.sessionId === sessionId);
 
-  return res.status(201).json(newEvent);
-});
+    if (isNonEmptyString(eventType)) {
+      filteredEvents = filteredEvents.filter((event) => event.eventType === eventType);
+    }
 
-// GET /events
-app.get("/events", (req: Request, res: Response) => {
-  const { sessionId, eventType, from, to } = req.query;
+    if (isNonEmptyString(from)) {
+      filteredEvents = filteredEvents.filter(
+        (event) => new Date(event.timestamp).getTime() >= new Date(from).getTime()
+      );
+    }
 
-  // sessionId is required
-  if (!sessionId || typeof sessionId !== "string") {
-    return res.status(400).json({
-      error: "sessionId is required",
-    });
-  }
+    if (isNonEmptyString(to)) {
+      filteredEvents = filteredEvents.filter(
+        (event) => new Date(event.timestamp).getTime() <= new Date(to).getTime()
+      );
+    }
 
-  let filteredEvents = events.filter(
-    (event) => event.sessionId === sessionId
-  );
-
-  // Filter by event type
-  if (eventType && typeof eventType === "string") {
-    filteredEvents = filteredEvents.filter(
-      (event) => event.eventType === eventType
+    filteredEvents.sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
-  }
 
-  // Filter from timestamp
-  if (from && typeof from === "string") {
-    filteredEvents = filteredEvents.filter(
-      (event) => new Date(event.timestamp) >= new Date(from)
+    return res.json(
+      filteredEvents.map((event) => ({
+        ...event,
+        flagged: isFlagged(event),
+      }))
     );
-  }
+  });
 
-  // Filter to timestamp
-  if (to && typeof to === "string") {
-    filteredEvents = filteredEvents.filter(
-      (event) => new Date(event.timestamp) <= new Date(to)
-    );
-  }
+  app.get("/stats", (_req: Request, res: Response) => {
+    const uniqueSessions = Array.from(new Set(events.map((e) => e.sessionId)));
+    const totalEvents = events.length;
+    const totalFlagged = events.filter(isFlagged).length;
 
-  // Sort by timestamp ascending
-  filteredEvents.sort(
-    (a, b) =>
-      new Date(a.timestamp).getTime() -
-      new Date(b.timestamp).getTime()
-  );
+    res.json({
+      totalEvents,
+      totalFlagged,
+      sessions: uniqueSessions,
+      denylist: getDenyList(),
+    });
+  });
 
-  // Add flagged field
-  const response = filteredEvents.map((event) => ({
-    ...event,
-    flagged: isFlagged(event),
-  }));
+  app.get("/config/denylist", (_req: Request, res: Response) => {
+    res.json({ denylist: getDenyList() });
+  });
 
-  return res.json(response);
-});
+  app.get("/health", (_req: Request, res: Response) => {
+    res.json({ ok: true });
+  });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+  return app;
+}
+
+const app = createApp();
+
+const isMainModule =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMainModule) {
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;
