@@ -1022,7 +1022,7 @@
       // Post New Event
       async function postEvent(customBody) {
         const targetSessionId = customBody?.sessionId || postSessionId.value.trim();
-        const customTime = postTimestamp?.value?.trim();
+        const customTime = customBody?.timestamp || document.getElementById('postTimestamp')?.value?.trim();
         
         const payloadBody = customBody || {
           timestamp: customTime || new Date().toISOString(),
