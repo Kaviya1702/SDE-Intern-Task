@@ -764,8 +764,8 @@
           <!-- Payload Form -->
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <div class="form-group">
-              <label for="postSessionId">Session ID</label>
-              <input id="postSessionId" type="text" value="s_5678" class="mono" />
+              <label for="postSessionId">Session ID (Customizable)</label>
+              <input id="postSessionId" type="text" value="s_5678" class="mono" placeholder="e.g. s_5678 or new session" />
             </div>
 
             <div class="form-group">
@@ -1021,10 +1021,13 @@
 
       // Post New Event
       async function postEvent(customBody) {
+        const targetSessionId = customBody?.sessionId || postSessionId.value.trim();
+        const customTime = postTimestamp?.value?.trim();
+        
         const payloadBody = customBody || {
-          timestamp: new Date().toISOString(),
+          timestamp: customTime || new Date().toISOString(),
           userId: postUserId.value.trim(),
-          sessionId: postSessionId.value.trim(),
+          sessionId: targetSessionId,
           eventType: postEventType.value,
           payload: { content: postContent.value.trim() }
         };
@@ -1047,10 +1050,13 @@
             } else {
               showToast(`Event ingested successfully (201 Created)`, '✅');
             }
-            loadStats();
-            if (sessionIdInput.value === payloadBody.sessionId) {
-              fetchEvents();
+            
+            // Automatically update query session filter to the newly posted session ID & load logs
+            if (payloadBody.sessionId) {
+              sessionIdInput.value = payloadBody.sessionId;
             }
+            await loadStats();
+            fetchEvents();
           } else {
             postResponseView.classList.add('error');
             showToast(`Rejected (HTTP ${res.status}): ${data.error}`, '❌');
