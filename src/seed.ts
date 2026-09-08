@@ -8,6 +8,36 @@ const seedList: Array<{
   eventType: EventType;
   payload: Record<string, unknown>;
 }> = [
+  // Session s_5678 (Exact Requirement Spec Session & Developer u_1234)
+  {
+    timestamp: "2026-09-08T14:30:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "file_edit",
+    payload: { content: "Updated src/auth/session.ts: Added developer session governance tracker." },
+  },
+  {
+    timestamp: "2026-09-08T14:32:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "ai_tool_call",
+    payload: { content: "Check the secret_key configuration" },
+  },
+  {
+    timestamp: "2026-09-08T14:35:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "command_exec",
+    payload: { content: "npm run test -- src/auth/session.test.ts" },
+  },
+  {
+    timestamp: "2026-09-08T14:40:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "ai_tool_call",
+    payload: { content: "Can you help me reset the database password in environment variables?" },
+  },
+
   // Session s_1001 - Developer: u_1001 (Auth Service Integration)
   {
     timestamp: "2026-09-08T09:00:00Z",
@@ -116,7 +146,7 @@ const seedList: Array<{
     userId: "u_1003",
     sessionId: "s_1003",
     eventType: "ai_tool_call",
-    payload: { content: "Explain TypeScript union types and discrinimated type narrowing." },
+    payload: { content: "Explain TypeScript union types and discriminated type narrowing." },
   },
   {
     timestamp: "2026-09-08T11:15:00Z",
