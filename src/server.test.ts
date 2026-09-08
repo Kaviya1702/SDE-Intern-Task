@@ -181,7 +181,7 @@ test("GET /events requires sessionId and returns empty array for valid no-match 
 test("GET /stats returns current cluster telemetry", async () => {
   const res = await request("GET", "/stats");
   assert.equal(res.status, 200);
-  assert.ok(res.body.totalEvents >= 1);
+  assert.ok(res.body.totalEvents >= 20);
   assert.ok(Array.isArray(res.body.sessions));
   assert.ok(Array.isArray(res.body.denylist));
 });

@@ -22,7 +22,7 @@ export interface AuditEvent {
   payload: Record<string, unknown>;
 }
 
-const events: AuditEvent[] = [];
+const events: AuditEvent[] = [...seedEvents];
 const PORT = Number(process.env.PORT ?? 3000);
 
 function isNonEmptyString(value: unknown): value is string {
