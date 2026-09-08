@@ -1085,42 +1085,45 @@
 
       submitPostBtn.addEventListener('click', () => postEvent());
 
-      // Preset Buttons Setup
+      // Preset Buttons Setup — Pre-fill form fields only
       document.getElementById('btnPresetRisky').addEventListener('click', () => {
         postEventType.value = 'ai_tool_call';
         postContent.value = 'Check the password and secret_key in config';
-        postEvent();
+        showToast('Risky prompt preset filled into form', '📝');
       });
 
       document.getElementById('btnPresetSafe').addEventListener('click', () => {
         postEventType.value = 'ai_tool_call';
         postContent.value = 'Can you explain TypeScript generics?';
-        postEvent();
+        showToast('Safe AI tool call preset filled into form', '📝');
       });
 
       document.getElementById('btnPresetFile').addEventListener('click', () => {
         postEventType.value = 'file_edit';
         postContent.value = 'Updated server.ts handler logic';
-        postEvent();
+        showToast('File edit preset filled into form', '📝');
       });
 
       document.getElementById('btnPresetInvalidType').addEventListener('click', () => {
+        postEventType.value = 'ai_tool_call';
+        postContent.value = 'Test invalid event type';
+        // Set invalid value on custom submit or test payload
         postEvent({
           timestamp: new Date().toISOString(),
-          userId: 'u_test',
-          sessionId: postSessionId.value,
+          userId: postUserId.value || 'u_1001',
+          sessionId: postSessionId.value || 's_1001',
           eventType: 'unsupported_type',
-          payload: { content: 'Test invalid type' }
+          payload: { content: 'Test invalid event type payload' }
         });
       });
 
       document.getElementById('btnPresetBadDate').addEventListener('click', () => {
         postEvent({
           timestamp: 'invalid-timestamp-format',
-          userId: 'u_test',
-          sessionId: postSessionId.value,
-          eventType: 'ai_tool_call',
-          payload: { content: 'Test bad date' }
+          userId: postUserId.value || 'u_1001',
+          sessionId: postSessionId.value || 's_1001',
+          eventType: postEventType.value || 'ai_tool_call',
+          payload: { content: 'Test bad timestamp format payload' }
         });
       });
 
