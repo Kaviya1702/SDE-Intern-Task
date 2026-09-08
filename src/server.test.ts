@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import express from "express";
 import { EventEmitter } from "node:events";
 import { createApp } from "./server.js";
+import { malformedSample } from "./seed.js";
 
 const app = createApp();
 
@@ -113,14 +114,8 @@ test("GET /events filters correctly by eventType and time range (from/to)", asyn
 });
 
 test("POST /events rejects malformed input and missing fields", async () => {
-  // Malformed timestamp
-  const badDate = await request("POST", "/events", {
-    timestamp: "not-a-date",
-    userId: "u_1234",
-    sessionId: "s_5678",
-    eventType: "file_edit",
-    payload: { content: "Updated file" },
-  });
+  // Malformed timestamp — uses the shared fixture from seed.ts
+  const badDate = await request("POST", "/events", malformedSample);
   assert.equal(badDate.status, 400);
   assert.equal(badDate.body.error, "Malformed timestamp");
 

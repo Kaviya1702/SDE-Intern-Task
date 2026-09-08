@@ -3,7 +3,7 @@ import crypto from "crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getDenyList } from "./config.js";
-import { seedEvents, persistSeedEvent, updateSeedEvent, deleteSeedEvent } from "./seed.js";
+import { seedEvents } from "./seed.js";
 
 export const EVENT_TYPES = [
   "file_edit",
@@ -118,7 +118,6 @@ export function createApp() {
     };
 
     events.push(newEvent);
-    persistSeedEvent(newEvent);
     return res.status(201).json({
       ...newEvent,
       flagged: isFlagged(newEvent),
@@ -160,7 +159,6 @@ export function createApp() {
     };
 
     events[eventIndex] = updatedEvent;
-    updateSeedEvent(updatedEvent);
 
     return res.json({
       ...updatedEvent,
@@ -181,7 +179,6 @@ export function createApp() {
     }
 
     const [deleted] = events.splice(eventIndex, 1);
-    deleteSeedEvent(deleted.id, deleted.sessionId, deleted.timestamp);
 
     return res.json({
       success: true,

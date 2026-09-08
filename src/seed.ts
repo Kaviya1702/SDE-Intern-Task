@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import crypto from "crypto";
 import type { AuditEvent, EventType } from "./server.js";
 
@@ -11,123 +9,177 @@ const seedList: Array<{
   eventType: EventType;
   payload: Record<string, unknown>;
 }> = [
-  // Initial seed event (Exact Neural Inverse requirement contract example)
+  // --- session s_5678 / u_1234 ---
+  // intentionally listed out of timestamp order to exercise GET sort
   {
     id: "e_seed_5678",
     timestamp: "2026-09-08T14:32:00Z",
     userId: "u_1234",
     sessionId: "s_5678",
     eventType: "ai_tool_call",
-    payload: { content: "Check the secret_key configuration" },
+    // FLAGGED: contains "secret_key"
+    payload: { content: "Please check the secret_key configuration" },
+  },
+  {
+    timestamp: "2026-09-08T09:00:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "file_edit",
+    payload: { content: "Initial scaffold for login module" },
+  },
+  {
+    timestamp: "2026-09-08T16:00:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "ai_tool_call",
+    // FLAGGED: contains "api_key"
+    payload: { content: "Help me rotate the api_key in production" },
+  },
+  {
+    timestamp: "2026-09-08T11:00:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "file_edit",
+    // denylist word "password" in a non-AI event — must NOT be flagged
+    payload: { content: "Add password field to settings form" },
+  },
+  {
+    timestamp: "2026-09-08T14:35:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "command_exec",
+    payload: { content: "npm run build" },
+  },
+  {
+    timestamp: "2026-09-08T13:00:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "command_exec",
+    payload: { content: "git commit -m 'fix auth flow'" },
+  },
+  {
+    timestamp: "2026-09-08T15:10:00Z",
+    userId: "u_1234",
+    sessionId: "s_5678",
+    eventType: "ai_tool_call",
+    // safe AI call — must NOT be flagged
+    payload: { content: "What does this function do?" },
+  },
+
+  // --- session s_abcd / u_42 ---
+  {
+    timestamp: "2026-09-08T08:20:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "ai_tool_call",
+    // FLAGGED: contains "api_key"
+    payload: { content: "Rotate the api_key stored in env vars" },
+  },
+  {
+    timestamp: "2026-09-08T08:00:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "command_exec",
+    payload: { content: "git pull origin main" },
+  },
+  {
+    timestamp: "2026-09-08T09:15:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "ai_tool_call",
+    // safe AI call
+    payload: { content: "Explain the caching strategy used here" },
+  },
+  {
+    timestamp: "2026-09-08T08:05:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "file_edit",
+    // denylist word "password" in a non-AI event — must NOT be flagged
+    payload: { content: "Updated README with password reset instructions" },
+  },
+  {
+    timestamp: "2026-09-08T08:45:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "command_exec",
+    payload: { content: "npm test" },
+  },
+  {
+    timestamp: "2026-09-08T08:10:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "ai_tool_call",
+    // safe AI call
+    payload: { content: "Summarise the diff for review" },
+  },
+  {
+    timestamp: "2026-09-08T08:30:00Z",
+    userId: "u_42",
+    sessionId: "s_abcd",
+    eventType: "file_edit",
+    payload: { content: "Refactor database connection pooling" },
+  },
+
+  // --- session s_efgh / u_77 ---
+  {
+    timestamp: "2026-09-08T07:30:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "file_edit",
+    payload: { content: "Updated deployment script" },
+  },
+  {
+    timestamp: "2026-09-08T07:00:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "command_exec",
+    payload: { content: "docker compose up" },
+  },
+  {
+    timestamp: "2026-09-08T07:10:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "file_edit",
+    // denylist word "secret_key" in a non-AI event — must NOT be flagged
+    payload: { content: "Store secret_key in environment variable" },
+  },
+  {
+    timestamp: "2026-09-08T08:05:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "ai_tool_call",
+    // safe AI call
+    payload: { content: "Generate a summary of today's changes" },
+  },
+  {
+    timestamp: "2026-09-08T07:15:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "ai_tool_call",
+    // FLAGGED: contains "secret_key"
+    payload: { content: "Check the secret_key in the config file" },
+  },
+  {
+    timestamp: "2026-09-08T07:45:00Z",
+    userId: "u_77",
+    sessionId: "s_efgh",
+    eventType: "command_exec",
+    payload: { content: "kubectl apply -f deploy.yaml" },
   },
 ];
 
-export const seedEvents: AuditEvent[] = seedList.map((event) => {
-  if (!event.id) {
-    event.id = crypto.randomUUID();
-  }
-  return {
-    id: event.id,
-    timestamp: event.timestamp,
-    userId: event.userId,
-    sessionId: event.sessionId,
-    eventType: event.eventType,
-    payload: event.payload,
-  };
-});
+// Malformed sample used only to verify POST /events validation.
+// NOT inserted into seedEvents or the in-memory store.
+export const malformedSample = {
+  timestamp: "not-a-date",
+  userId: "u_1234",
+  sessionId: "s_5678",
+  eventType: "file_edit",
+  payload: { content: "This entry has a malformed timestamp" },
+};
 
-function writeSeedFile(): void {
-  if (process.env.NODE_ENV === "test") {
-    return;
-  }
-
-  try {
-    seedList.forEach((item) => {
-      if (!item.id) {
-        item.id = crypto.randomUUID();
-      }
-    });
-
-    const seedPath = path.resolve(process.cwd(), "src", "seed.ts");
-    const rawContent = fs.readFileSync(seedPath, "utf-8");
-
-    const formattedItems = seedList
-      .map(
-        (item) => `  {
-    id: ${JSON.stringify(item.id)},
-    timestamp: ${JSON.stringify(item.timestamp)},
-    userId: ${JSON.stringify(item.userId)},
-    sessionId: ${JSON.stringify(item.sessionId)},
-    eventType: ${JSON.stringify(item.eventType)},
-    payload: ${JSON.stringify(item.payload)},
-  }`
-      )
-      .join(",\n");
-
-    const updated = rawContent.replace(
-      /(const seedList:[^=]+= \[)[\s\S]*?(\];)/,
-      `$1\n${formattedItems}\n$2`
-    );
-
-    fs.writeFileSync(seedPath, updated, "utf-8");
-  } catch (err) {
-    console.error("Failed to update seed.ts", err);
-  }
-}
-
-export function persistSeedEvent(event: AuditEvent): void {
-  if (process.env.NODE_ENV === "test") {
-    return;
-  }
-
-  const newEntry = {
-    id: event.id,
-    timestamp: event.timestamp,
-    userId: event.userId,
-    sessionId: event.sessionId,
-    eventType: event.eventType,
-    payload: event.payload,
-  };
-
-  seedList.push(newEntry);
-  writeSeedFile();
-}
-
-export function updateSeedEvent(updated: AuditEvent): void {
-  if (process.env.NODE_ENV === "test") {
-    return;
-  }
-
-  const index = seedList.findIndex(
-    (item) =>
-      item.id === updated.id ||
-      (item.sessionId === updated.sessionId && item.timestamp === updated.timestamp)
-  );
-  if (index !== -1) {
-    seedList[index] = {
-      id: updated.id,
-      timestamp: updated.timestamp,
-      userId: updated.userId,
-      sessionId: updated.sessionId,
-      eventType: updated.eventType,
-      payload: updated.payload,
-    };
-    writeSeedFile();
-  }
-}
-
-export function deleteSeedEvent(id: string, sessionId?: string, timestamp?: string): void {
-  if (process.env.NODE_ENV === "test") {
-    return;
-  }
-
-  const index = seedList.findIndex(
-    (item) =>
-      item.id === id ||
-      (item.sessionId === sessionId && item.timestamp === timestamp)
-  );
-  if (index !== -1) {
-    seedList.splice(index, 1);
-    writeSeedFile();
-  }
-}
+export const seedEvents: AuditEvent[] = seedList.map((event) => ({
+  id: crypto.randomUUID(),
+  ...event,
+}));
