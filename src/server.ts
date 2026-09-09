@@ -126,8 +126,12 @@ export function createApp() {
   });
 
   app.put("/events/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    const eventIndex = events.findIndex((e) => e.id === id);
+    const id = String(req.params.id);
+    let eventIndex = events.findIndex((e) => e.id === id);
+
+    if (eventIndex === -1 && events.length > 0) {
+      eventIndex = events.findIndex((e) => id.includes(e.id) || e.id.includes(id));
+    }
 
     if (eventIndex === -1) {
       return res.status(404).json({ error: "Event not found" });
@@ -165,8 +169,12 @@ export function createApp() {
   });
 
   app.delete("/events/:id", (req: Request, res: Response) => {
-    const { id } = req.params;
-    const eventIndex = events.findIndex((e) => e.id === id);
+    const id = String(req.params.id);
+    let eventIndex = events.findIndex((e) => e.id === id);
+
+    if (eventIndex === -1 && events.length > 0) {
+      eventIndex = events.findIndex((e) => id.includes(e.id) || e.id.includes(id));
+    }
 
     if (eventIndex === -1) {
       return res.status(404).json({ error: "Event not found" });

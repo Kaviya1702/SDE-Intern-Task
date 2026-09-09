@@ -22,14 +22,19 @@ const seedList: Array<{
   },
 ];
 
-export const seedEvents: AuditEvent[] = seedList.map((event) => ({
-  id: event.id || crypto.randomUUID(),
-  timestamp: event.timestamp,
-  userId: event.userId,
-  sessionId: event.sessionId,
-  eventType: event.eventType,
-  payload: event.payload,
-}));
+export const seedEvents: AuditEvent[] = seedList.map((event) => {
+  if (!event.id) {
+    event.id = crypto.randomUUID();
+  }
+  return {
+    id: event.id,
+    timestamp: event.timestamp,
+    userId: event.userId,
+    sessionId: event.sessionId,
+    eventType: event.eventType,
+    payload: event.payload,
+  };
+});
 
 function writeSeedFile(): void {
   if (process.env.NODE_ENV === "test") {
@@ -37,6 +42,12 @@ function writeSeedFile(): void {
   }
 
   try {
+    seedList.forEach((item) => {
+      if (!item.id) {
+        item.id = crypto.randomUUID();
+      }
+    });
+
     const seedPath = path.resolve(process.cwd(), "src", "seed.ts");
     const rawContent = fs.readFileSync(seedPath, "utf-8");
 
