@@ -10,69 +10,14 @@ const seedList: Array<{
   eventType: EventType;
   payload: Record<string, unknown>;
 }> = [
+  // Initial seed event (Exact Neural Inverse requirement contract example)
   {
     timestamp: "2026-09-08T14:32:00Z",
     userId: "u_1234",
     sessionId: "s_5678",
     eventType: "ai_tool_call",
-    payload: {"content":"Check the secret_key configuration"},
+    payload: { content: "Check the secret_key configuration" },
   },
-  {
-    timestamp: "2026-09-08T14:32:00Z",
-    userId: "u_1234",
-    sessionId: "s_5678",
-    eventType: "ai_tool_call",
-    payload: {"content":"Please check the secret_key configuration"},
-  },
-  {
-    timestamp: "2026-09-08T14:35:00Z",
-    userId: "u_1234",
-    sessionId: "s_5678",
-    eventType: "command_exec",
-    payload: {"content":"npm run test"},
-  },
-  {
-    timestamp: "2026-09-08T10:00:00Z",
-    userId: "u_99",
-    sessionId: "s_test_filters",
-    eventType: "file_edit",
-    payload: {"content":"File edit 1"},
-  },
-  {
-    timestamp: "2026-09-08T11:00:00Z",
-    userId: "u_99",
-    sessionId: "s_test_filters",
-    eventType: "ai_tool_call",
-    payload: {"content":"Check API_KEY"},
-  },
-  {
-    timestamp: "2026-09-08T12:00:00Z",
-    userId: "u_99",
-    sessionId: "s_test_filters",
-    eventType: "command_exec",
-    payload: {"content":"git commit"},
-  },
-  {
-    timestamp: "2026-09-08T15:00:00Z",
-    userId: "u_sec",
-    sessionId: "s_policy",
-    eventType: "file_edit",
-    payload: {"content":"Added password input field in UI"},
-  },
-  {
-    timestamp: "2026-09-08T15:05:00Z",
-    userId: "u_sec",
-    sessionId: "s_policy",
-    eventType: "ai_tool_call",
-    payload: {"content":"Help me decrypt this PASSWORD file"},
-  },
-  {
-    timestamp: "2026-09-08T16:00:00Z",
-    userId: "u_edit_test",
-    sessionId: "s_edit_session",
-    eventType: "ai_tool_call",
-    payload: {"content":"Updated content with secret_key"},
-  }
 ];
 
 export const seedEvents: AuditEvent[] = seedList.map((event) => ({
