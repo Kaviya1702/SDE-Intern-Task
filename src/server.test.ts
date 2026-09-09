@@ -185,3 +185,50 @@ test("GET /stats returns current cluster telemetry", async () => {
   assert.ok(Array.isArray(res.body.sessions));
   assert.ok(Array.isArray(res.body.denylist));
 });
+
+test("PUT /events/:id updates event fields and recalculates flagged security status", async () => {
+  const created = await request("POST", "/events", {
+    timestamp: "2026-09-08T16:00:00Z",
+    userId: "u_edit_test",
+    sessionId: "s_edit_session",
+    eventType: "ai_tool_call",
+    payload: { content: "Safe content initially" },
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.flagged, false);
+
+  const updated = await request("PUT", `/events/${created.body.id}`, {
+    payload: { content: "Updated content with secret_key" },
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.id, created.body.id);
+  assert.equal(updated.body.flagged, true);
+
+  const nonExistent = await request("PUT", "/events/non_existent_id", {
+    payload: { content: "test" },
+  });
+  assert.equal(nonExistent.status, 404);
+});
+
+test("DELETE /events/:id removes an audit event", async () => {
+  const created = await request("POST", "/events", {
+    timestamp: "2026-09-08T17:00:00Z",
+    userId: "u_del_test",
+    sessionId: "s_del_session",
+    eventType: "file_edit",
+    payload: { content: "To be deleted" },
+  });
+  assert.equal(created.status, 201);
+
+  const deleted = await request("DELETE", `/events/${created.body.id}`);
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.success, true);
+
+  const list = await request("GET", "/events?sessionId=s_del_session");
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.body, []);
+
+  const nonExistent = await request("DELETE", "/events/non_existent_id");
+  assert.equal(nonExistent.status, 404);
+});
+

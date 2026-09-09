@@ -3,7 +3,7 @@ import crypto from "crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getDenyList } from "./config.js";
-import { seedEvents, persistSeedEvent } from "./seed.js";
+import { seedEvents, persistSeedEvent, updateSeedEvent, deleteSeedEvent } from "./seed.js";
 
 export const EVENT_TYPES = [
   "file_edit",
@@ -117,6 +117,63 @@ export function createApp() {
     return res.status(201).json({
       ...newEvent,
       flagged: isFlagged(newEvent),
+    });
+  });
+
+  app.put("/events/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    const eventIndex = events.findIndex((e) => e.id === id);
+
+    if (eventIndex === -1) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const { timestamp, userId, sessionId, eventType, payload } = req.body ?? {};
+
+    if (eventType !== undefined && !EVENT_TYPES.includes(eventType as EventType)) {
+      return res.status(400).json({
+        error: "Invalid eventType. Must be file_edit, ai_tool_call, or command_exec",
+      });
+    }
+
+    if (timestamp !== undefined && !isValidTimestamp(timestamp)) {
+      return res.status(400).json({ error: "Malformed timestamp" });
+    }
+
+    const existing = events[eventIndex];
+    const updatedEvent: AuditEvent = {
+      ...existing,
+      timestamp: isNonEmptyString(timestamp) ? timestamp : existing.timestamp,
+      userId: isNonEmptyString(userId) ? userId.trim() : existing.userId,
+      sessionId: isNonEmptyString(sessionId) ? sessionId.trim() : existing.sessionId,
+      eventType: (eventType as EventType) || existing.eventType,
+      payload: payload && typeof payload === "object" ? payload : existing.payload,
+    };
+
+    events[eventIndex] = updatedEvent;
+    updateSeedEvent(updatedEvent);
+
+    return res.json({
+      ...updatedEvent,
+      flagged: isFlagged(updatedEvent),
+    });
+  });
+
+  app.delete("/events/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    const eventIndex = events.findIndex((e) => e.id === id);
+
+    if (eventIndex === -1) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const [deleted] = events.splice(eventIndex, 1);
+    deleteSeedEvent(deleted.sessionId, deleted.timestamp);
+
+    return res.json({
+      success: true,
+      message: "Event deleted successfully",
+      id: deleted.id,
     });
   });
 

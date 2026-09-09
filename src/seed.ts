@@ -65,6 +65,13 @@ const seedList: Array<{
     sessionId: "s_policy",
     eventType: "ai_tool_call",
     payload: {"content":"Help me decrypt this PASSWORD file"},
+  },
+  {
+    timestamp: "2026-09-08T16:00:00Z",
+    userId: "u_edit_test",
+    sessionId: "s_edit_session",
+    eventType: "ai_tool_call",
+    payload: {"content":"Updated content with secret_key"},
   }
 ];
 
@@ -73,20 +80,10 @@ export const seedEvents: AuditEvent[] = seedList.map((event) => ({
   ...event,
 }));
 
-export function persistSeedEvent(event: AuditEvent): void {
+function writeSeedFile(): void {
   if (process.env.NODE_ENV === "test") {
     return;
   }
-
-  const newEntry = {
-    timestamp: event.timestamp,
-    userId: event.userId,
-    sessionId: event.sessionId,
-    eventType: event.eventType,
-    payload: event.payload,
-  };
-
-  seedList.push(newEntry);
 
   try {
     const seedPath = path.resolve(process.cwd(), "src", "seed.ts");
@@ -112,5 +109,57 @@ export function persistSeedEvent(event: AuditEvent): void {
     fs.writeFileSync(seedPath, updated, "utf-8");
   } catch (err) {
     console.error("Failed to update seed.ts", err);
+  }
+}
+
+export function persistSeedEvent(event: AuditEvent): void {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  const newEntry = {
+    timestamp: event.timestamp,
+    userId: event.userId,
+    sessionId: event.sessionId,
+    eventType: event.eventType,
+    payload: event.payload,
+  };
+
+  seedList.push(newEntry);
+  writeSeedFile();
+}
+
+export function updateSeedEvent(updated: AuditEvent): void {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  const index = seedList.findIndex(
+    (item) =>
+      item.sessionId === updated.sessionId && item.userId === updated.userId
+  );
+  if (index !== -1) {
+    seedList[index] = {
+      timestamp: updated.timestamp,
+      userId: updated.userId,
+      sessionId: updated.sessionId,
+      eventType: updated.eventType,
+      payload: updated.payload,
+    };
+    writeSeedFile();
+  }
+}
+
+export function deleteSeedEvent(sessionId: string, timestamp: string): void {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  const index = seedList.findIndex(
+    (item) => item.sessionId === sessionId && item.timestamp === timestamp
+  );
+  if (index !== -1) {
+    seedList.splice(index, 1);
+    writeSeedFile();
   }
 }
