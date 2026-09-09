@@ -173,7 +173,7 @@ export function createApp() {
     }
 
     const [deleted] = events.splice(eventIndex, 1);
-    deleteSeedEvent(deleted.sessionId, deleted.timestamp);
+    deleteSeedEvent(deleted.id, deleted.sessionId, deleted.timestamp);
 
     return res.json({
       success: true,

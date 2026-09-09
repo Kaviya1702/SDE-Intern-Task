@@ -4,6 +4,7 @@ import crypto from "crypto";
 import type { AuditEvent, EventType } from "./server.js";
 
 const seedList: Array<{
+  id?: string;
   timestamp: string;
   userId: string;
   sessionId: string;
@@ -12,6 +13,7 @@ const seedList: Array<{
 }> = [
   // Initial seed event (Exact Neural Inverse requirement contract example)
   {
+    id: "e_seed_5678",
     timestamp: "2026-09-08T14:32:00Z",
     userId: "u_1234",
     sessionId: "s_5678",
@@ -21,8 +23,12 @@ const seedList: Array<{
 ];
 
 export const seedEvents: AuditEvent[] = seedList.map((event) => ({
-  id: crypto.randomUUID(),
-  ...event,
+  id: event.id || crypto.randomUUID(),
+  timestamp: event.timestamp,
+  userId: event.userId,
+  sessionId: event.sessionId,
+  eventType: event.eventType,
+  payload: event.payload,
 }));
 
 function writeSeedFile(): void {
@@ -37,6 +43,7 @@ function writeSeedFile(): void {
     const formattedItems = seedList
       .map(
         (item) => `  {
+    id: ${JSON.stringify(item.id)},
     timestamp: ${JSON.stringify(item.timestamp)},
     userId: ${JSON.stringify(item.userId)},
     sessionId: ${JSON.stringify(item.sessionId)},
@@ -63,6 +70,7 @@ export function persistSeedEvent(event: AuditEvent): void {
   }
 
   const newEntry = {
+    id: event.id,
     timestamp: event.timestamp,
     userId: event.userId,
     sessionId: event.sessionId,
@@ -81,10 +89,12 @@ export function updateSeedEvent(updated: AuditEvent): void {
 
   const index = seedList.findIndex(
     (item) =>
-      item.sessionId === updated.sessionId && item.userId === updated.userId
+      item.id === updated.id ||
+      (item.sessionId === updated.sessionId && item.timestamp === updated.timestamp)
   );
   if (index !== -1) {
     seedList[index] = {
+      id: updated.id,
       timestamp: updated.timestamp,
       userId: updated.userId,
       sessionId: updated.sessionId,
@@ -95,13 +105,15 @@ export function updateSeedEvent(updated: AuditEvent): void {
   }
 }
 
-export function deleteSeedEvent(sessionId: string, timestamp: string): void {
+export function deleteSeedEvent(id: string, sessionId?: string, timestamp?: string): void {
   if (process.env.NODE_ENV === "test") {
     return;
   }
 
   const index = seedList.findIndex(
-    (item) => item.sessionId === sessionId && item.timestamp === timestamp
+    (item) =>
+      item.id === id ||
+      (item.sessionId === sessionId && item.timestamp === timestamp)
   );
   if (index !== -1) {
     seedList.splice(index, 1);
